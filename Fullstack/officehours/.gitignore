@@ -1,0 +1,4 @@
+node_modules/
+npm-debug.log*
+server/playwright-report/
+server/test-results/

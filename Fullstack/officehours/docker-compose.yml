@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: officehours_user
+      POSTGRES_PASSWORD: officehours_pass
+      POSTGRES_DB: officehours
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs once, when the data volume is first created.
+      - ./server/sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # -h 127.0.0.1 asks over TCP: while init.sql is still running, Postgres
+      # only listens on a local socket, so this stays "not ready" until it's done.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U officehours_user -d officehours"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  app:
+    build: ./server
+    environment:
+      DATABASE_URL: postgres://officehours_user:officehours_pass@db:5432/officehours
+      JWT_SECRET: demo-secret-change-me
+      PORT: 3000
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    healthcheck:
+      # /api/health runs SELECT 1, so "healthy" means the app can reach the database.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  pgdata:

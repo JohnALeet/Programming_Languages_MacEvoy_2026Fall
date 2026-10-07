@@ -1,0 +1,690 @@
+/* Office Hours Queue
+ *
+ * Hallway signage: quiet sheets of paper on a cool wall, wayfinding-style
+ * numerals, and one bold object -- the yellow take-a-number ticket a student
+ * holds while they wait.
+ *
+ * Visual state comes from classes the script sets (.is-open, .is-closed,
+ * .is-now): which color a status gets is a rule declared once here, not a
+ * value the JavaScript computes per element.
+ */
+
+:root {
+  --wall: #e9edf1;
+  --paper: #ffffff;
+  --ink: #1b2533;
+  --ink-soft: #5b6878;
+  --rule: #d3dae2;
+  --ticket: #f6c945;
+  --ticket-ink: #1b2533;
+  --open: #1f7a4d;
+  --danger: #b42318;
+  --focus: #2f6fdb;
+
+  /* Signage numerals: DIN on macOS/iOS, Bahnschrift (a DIN design) on Windows. */
+  --font-sign: 'DIN Alternate', 'DIN Condensed', Bahnschrift, 'D-DIN', 'Roboto Condensed',
+    'Arial Narrow', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--wall);
+  color: var(--ink);
+  font: 16px/1.5 var(--font-body);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0;
+}
+
+h1 {
+  font-size: 48px;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 24px;
+}
+
+h3 {
+  font-size: 18px;
+}
+
+p {
+  margin: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- page frame ------------------------------------------------------- */
+
+.masthead,
+.layout {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--space-5);
+}
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-top: var(--space-7);
+  padding-bottom: var(--space-6);
+}
+
+.lede {
+  margin-top: var(--space-2);
+  font-size: 18px;
+  color: var(--ink-soft);
+}
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink-soft);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: var(--space-5);
+  align-items: start;
+  padding-bottom: var(--space-7);
+}
+
+.desk,
+.people {
+  grid-column: 1 / -1;
+}
+
+.side {
+  display: grid;
+  gap: var(--space-5);
+}
+
+/* A sheet is a page pinned to the wall: white, square, a heavy top edge. */
+.sheet {
+  background: var(--paper);
+  border-top: 4px solid var(--ink);
+  padding: var(--space-5);
+}
+
+.sheet > h2 {
+  margin-bottom: var(--space-4);
+}
+
+.sheet-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.sheet-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+/* ---- controls --------------------------------------------------------- */
+
+.button {
+  font: inherit;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.button--primary {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.button--quiet {
+  border-color: transparent;
+  background: transparent;
+  padding: 6px 8px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.button--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+  padding: 6px 12px;
+  font-size: 14px;
+}
+
+.button:hover:not(:disabled) {
+  background: #f2f4f7;
+}
+
+.button--primary:hover:not(:disabled) {
+  background: #2c3b50;
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.link-button {
+  font: inherit;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+label {
+  display: grid;
+  gap: var(--space-1);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+input,
+select,
+textarea {
+  font: 16px/1.4 var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid #a9b4c0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  width: 100%;
+  min-height: 44px;
+}
+
+textarea {
+  resize: vertical;
+}
+
+/* Only after someone has typed: an empty required field isn't an error yet. */
+input:user-invalid,
+textarea:user-invalid {
+  border-color: var(--danger);
+}
+
+.hint {
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.inline-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.inline-label select {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.switch {
+  margin-top: var(--space-4);
+  font-size: 14px;
+}
+
+.status {
+  margin-top: var(--space-3);
+  min-height: 1.5em;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.status[data-kind='error'],
+#last-updated[data-kind='error'] {
+  color: var(--danger);
+}
+
+.empty {
+  color: var(--ink-soft);
+}
+
+/* ---- the queue board -------------------------------------------------- */
+
+.queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.queue {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.queue-main {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+}
+
+.queue-where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.queue-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.queue-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.is-open .queue-status {
+  color: var(--open);
+}
+
+.is-closed .queue-status {
+  color: var(--ink-soft);
+}
+
+.queue-pace {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.queue-count {
+  display: grid;
+  justify-items: end;
+  align-content: start;
+  min-width: 72px;
+}
+
+.queue-count-number {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  font-size: 48px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.queue-count-label {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.is-closed .queue-name,
+.is-closed .queue-count-number {
+  color: var(--ink-soft);
+}
+
+/* ---- tickets: the one bold thing ---------------------------------------- */
+
+.you {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.tickets {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* A take-a-number ticket: notches bitten out of both ends, and a perforation
+ * between the number stub and the rest. */
+.ticket {
+  --notch: 9px;
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  background: var(--ticket);
+  color: var(--ticket-ink);
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at left 50%, transparent 98%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at right 50%, transparent 98%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at left 50%, transparent 98%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at right 50%, transparent 98%, #000 100%) right / 51% 100% no-repeat;
+}
+
+.ticket-number {
+  display: grid;
+  place-items: center;
+  /* extra room on the left keeps the digits clear of the notch */
+  padding: var(--space-4) var(--space-2) var(--space-4) var(--space-4);
+  font-family: var(--font-sign);
+  font-weight: 700;
+  font-size: 56px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  border-right: 2px dashed rgba(27, 37, 51, 0.35);
+}
+
+.ticket-body {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding: var(--space-4) var(--space-5) var(--space-4) var(--space-4);
+}
+
+.ticket-headline {
+  font-weight: 700;
+}
+
+.ticket-topic {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.ticket .button--quiet {
+  margin-left: -8px;
+  font-size: 14px;
+}
+
+.ticket.is-now {
+  --ticket: var(--ink);
+  --ticket-ink: var(--paper);
+}
+
+.ticket.is-now .ticket-number {
+  font-size: 22px;
+  border-right-color: rgba(255, 255, 255, 0.35);
+}
+
+/* The single moment of motion: a new ticket feeds out of the dispenser. */
+.ticket.is-new {
+  animation: dispense 420ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+
+@keyframes dispense {
+  from {
+    transform: translateY(-16px);
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    transform: none;
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticket.is-new {
+    animation: none;
+  }
+}
+
+/* ---- TA desk ------------------------------------------------------------ */
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-6);
+}
+
+.desk-now {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+
+#now-helping {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.helping {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding: var(--space-4);
+  border-left: 4px solid var(--rule);
+  background: #f5f7f9;
+}
+
+.helping.is-mine {
+  border-left-color: var(--ticket);
+}
+
+.helping-who {
+  font-weight: 700;
+}
+
+.helping-topic {
+  overflow-wrap: anywhere;
+}
+
+.helping-since {
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+
+.helping .button {
+  margin-top: var(--space-2);
+}
+
+.desk-subhead {
+  margin-bottom: var(--space-2);
+}
+
+.waiting-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.waiting-item {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+}
+
+.waiting-position {
+  font-family: var(--font-sign);
+  font-weight: 700;
+  font-size: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.waiting-text {
+  display: grid;
+}
+
+.waiting-student {
+  font-weight: 600;
+}
+
+.waiting-topic {
+  overflow-wrap: anywhere;
+}
+
+.waiting-since {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.waiting-list .empty {
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- people (admins) -------------------------------------------------- */
+
+.user-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+  margin: var(--space-4) 0 var(--space-5);
+}
+
+.people-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.people-table th,
+.people-table td {
+  text-align: left;
+  padding: var(--space-2) var(--space-3) var(--space-2) 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+
+.people-table th {
+  font-size: 14px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.people-table .actions {
+  text-align: right;
+  padding-right: 0;
+}
+
+/* ---- layouts per job ----------------------------------------------------
+ * app.js sets body[data-view] to guest, student or staff. Staff (TAs and
+ * admins) have no side column, so their desk comes first and the board
+ * spreads its queues side by side, like a departures board. */
+
+body[data-view='staff'] .board {
+  grid-column: 1 / -1;
+}
+
+body[data-view='staff'] .desk {
+  order: -1;
+}
+
+body[data-view='staff'] .queue-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  column-gap: var(--space-6);
+}
+
+/* ---- small screens ---------------------------------------------------- */
+
+@media (max-width: 860px) {
+  .layout,
+  .desk-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* On a phone, a student's own ticket matters more than the whole board. */
+  body[data-view='student'] .side {
+    order: -1;
+  }
+}
+
+@media (max-width: 520px) {
+  .masthead,
+  .layout {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .masthead {
+    padding-top: var(--space-6);
+    padding-bottom: var(--space-5);
+  }
+
+  h1 {
+    font-size: 36px;
+  }
+
+  .sheet {
+    padding: var(--space-4);
+  }
+
+  .queue-count-number {
+    font-size: 40px;
+  }
+
+  .ticket {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .ticket-number {
+    font-size: 44px;
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "office-hours-queue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Office-hours help queue: HTML/CSS/JS frontend, Node + Express API, Postgres database.",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test --test-concurrency=1 \"test/*.test.js\"",
+    "test:unit": "node --test test/logic.test.js test/audit.test.js",
+    "test:e2e": "playwright test",
+    "db:reset": "node scripts/reset-db.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}

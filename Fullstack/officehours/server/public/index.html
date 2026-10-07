@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Office Hours Queue</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M3 9h26v4a3 3 0 0 0 0 6v4H3v-4a3 3 0 0 0 0-6z' fill='%23f6c945'/%3E%3Cpath d='M12 9v14' stroke='%231b2533' stroke-dasharray='2 2'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div>
+        <h1>Office hours</h1>
+        <p class="lede">See how long each line is, get in line, and get help.</p>
+      </div>
+      <div class="session">
+        <p id="session-label" hidden></p>
+        <button id="logout" class="button button--quiet" type="button" hidden>Sign out</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="sheet board" aria-labelledby="board-title">
+        <div class="sheet-head">
+          <h2 id="board-title">Queues</h2>
+          <p class="sheet-meta">
+            <span id="last-updated" role="status">Loading</span>
+            <button id="refresh" class="button button--quiet" type="button">Refresh</button>
+          </p>
+        </div>
+        <ul id="queue-list" class="queue-list"></ul>
+      </section>
+
+      <div id="side" class="side">
+        <section id="auth-panel" class="sheet" aria-labelledby="auth-title">
+          <h2 id="auth-title">Sign in</h2>
+
+          <form id="login-form" class="stack">
+            <label>
+              Username
+              <input id="login-username" name="username" autocomplete="username" required />
+            </label>
+            <label>
+              Password
+              <input
+                id="login-password"
+                name="password"
+                type="password"
+                autocomplete="current-password"
+                required
+              />
+            </label>
+            <button class="button button--primary" type="submit">Sign in</button>
+          </form>
+
+          <!-- The pattern/minlength attributes are the browser-side check, for quick
+               feedback. The server repeats every check: anyone can skip this page. -->
+          <form id="register-form" class="stack" hidden>
+            <label>
+              Username
+              <input
+                id="register-username"
+                name="username"
+                autocomplete="username"
+                required
+                pattern="[a-zA-Z0-9][a-zA-Z0-9\/._\-]{1,31}"
+                title="2-32 characters: letters, digits, and . _ - /"
+              />
+            </label>
+            <label>
+              Password
+              <input
+                id="register-password"
+                name="password"
+                type="password"
+                autocomplete="new-password"
+                required
+                minlength="8"
+                maxlength="72"
+              />
+              <span class="hint">At least 8 characters.</span>
+            </label>
+            <button class="button button--primary" type="submit">Create account</button>
+          </form>
+
+          <p class="switch">
+            <button id="auth-switch" class="link-button" type="button">
+              New here? Create a student account
+            </button>
+          </p>
+          <p id="auth-status" class="status" role="status"></p>
+        </section>
+
+        <section id="student-panel" class="you" aria-labelledby="student-title" hidden>
+          <h2 id="student-title">Your place in line</h2>
+          <div id="my-tickets" class="tickets"></div>
+
+          <form id="join-form" class="stack sheet">
+            <label>
+              Queue
+              <select id="join-queue" required></select>
+            </label>
+            <label>
+              What do you need help with?
+              <textarea
+                id="join-topic"
+                rows="2"
+                required
+                maxlength="200"
+                placeholder="My parser loops forever on left recursion"
+              ></textarea>
+            </label>
+            <button class="button button--primary" type="submit">Get in line</button>
+            <p id="join-hint" class="hint" hidden></p>
+          </form>
+          <p id="student-status" class="status" role="status"></p>
+        </section>
+      </div>
+
+      <section id="ta-panel" class="sheet desk" aria-labelledby="ta-title" hidden>
+        <div class="sheet-head">
+          <h2 id="ta-title">TA desk</h2>
+          <label class="inline-label">
+            Queue
+            <select id="ta-queue"></select>
+          </label>
+        </div>
+        <div class="desk-grid">
+          <div class="desk-now">
+            <div id="now-helping"></div>
+            <div class="button-row">
+              <button id="claim-next" class="button button--primary" type="button">
+                Help next student
+              </button>
+              <button id="toggle-open" class="button" type="button">Close queue</button>
+            </div>
+            <p id="claim-hint" class="hint" hidden></p>
+          </div>
+          <div>
+            <h3 class="desk-subhead">Waiting</h3>
+            <ol id="waiting-list" class="waiting-list"></ol>
+          </div>
+        </div>
+        <p id="ta-status" class="status" role="status"></p>
+      </section>
+
+      <section id="admin-panel" class="sheet people" aria-labelledby="admin-title" hidden>
+        <h2 id="admin-title">People</h2>
+        <form id="user-form" class="user-form">
+          <label>
+            Username
+            <input
+              id="user-username"
+              required
+              pattern="[a-zA-Z0-9][a-zA-Z0-9\/._\-]{1,31}"
+              title="2-32 characters: letters, digits, and . _ - /"
+              placeholder="ta/111"
+            />
+          </label>
+          <label>
+            Password
+            <input id="user-password" type="password" autocomplete="new-password" required minlength="8" maxlength="72" />
+          </label>
+          <label>
+            Role
+            <select id="user-role">
+              <option value="student">Student</option>
+              <option value="ta">TA</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+          <label id="user-queue-row" hidden>
+            Queue
+            <select id="user-queue"></select>
+          </label>
+          <button class="button button--primary" type="submit">Add person</button>
+        </form>
+        <table class="people-table">
+          <thead>
+            <tr>
+              <th scope="col">Username</th>
+              <th scope="col">Role</th>
+              <th scope="col">Queue</th>
+              <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="user-list"></tbody>
+        </table>
+        <p id="user-status" class="status" role="status"></p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
